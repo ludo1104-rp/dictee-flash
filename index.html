@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dictée flash">
+<title>Dictée flash</title>
+<!--
+  DICTÉE FLASH — v1.1 — style « doux et illustré » (applis élèves de Riga Ludovic)
+  Adaptation d'une appli créée par Angelo Malaguarnera avec Gemini. Structure d'origine conservée :
+  accueil (mots + rythme + affichage et son) → séance (regarder le mot, puis l'écrire sur la feuille) → correction.
+  Ne pas utiliser l'attribut data-theme pour la logique de l'appli (réservé au thème clair/sombre).
+  Polices du mot (choix de l'appli d'origine) : chargées depuis Internet. Sans connexion, l'iPad prend une police de secours.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Comic+Neue:wght@700&family=Edu+SA+Beginner:wght@600&family=Lexend:wght@600&display=swap" rel="stylesheet">
+<style>
+/* Marelle et Marelle 2 : cursives officielles (forge apps.education.fr) ; OpenDyslexic : jsDelivr */
+@font-face{font-family:'Marelle';src:url('https://marelle.forge.apps.education.fr/fonts/Marelle-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Marelle2';src:url('https://marelle.forge.apps.education.fr/fonts/Marelle2-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'OpenDyslexic';src:url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff') format('woff');font-weight:400;font-style:normal;font-display:swap}
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#F7F8FB; --surface:#EEF1F6; --card:#FFFFFF; --ink:#1F2933; --muted:#6A7581; --line:#E0E5EC; --line-strong:#CDD5DF;
+  --focus:#3B6FD8; --primary:#3B6FD8; --primary-ink:#FFFFFF;
+  --ok:#22804A; --ok-bg:#E3F5E9; --ok-strong:#2FA05C;
+  --bad:#B42A20; --bad-bg:#FCE7E5; --bad-strong:#D9473B;
+  --sel:#3B6FD8; --sel-bg:#E6EEFC;
+  --p-blue:#DCE9FB; --p-lav:#E7E0FA; --p-peach:#FDE5D3; --p-mint:#DCF1E4; --p-yellow:#FAF0C8; --p-rose:#FADDE3; --p-teal:#D3EFEC; --p-gris:#E6EAF0; /* pastels FIXES : identiques en clair et en sombre, toujours avec --tile-ink */
+  --lav-ink:#3C3489; --mint-ink:#27500A; --rose-ink:#72243E; --tile-ink:#1F2933;
+  --phase-lecture:#378ADD; --phase-ecriture:#EF9F27;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#13181E; --surface:#1F2630; --card:#1A2129; --ink:#ECF0F4; --muted:#A0ABB7; --line:#2C3540; --line-strong:#3A4552;
+    --focus:#8AB4F8; --primary:#6F9BF0; --primary-ink:#0F141A;
+    --ok:#6FD39A; --ok-bg:#1C3527; --bad:#FF8A80; --bad-bg:#3F201E; --sel:#8AB4F8; --sel-bg:#21324B;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13181E; --surface:#1F2630; --card:#1A2129; --ink:#ECF0F4; --muted:#A0ABB7; --line:#2C3540; --line-strong:#3A4552;
+  --focus:#8AB4F8; --primary:#6F9BF0; --primary-ink:#0F141A;
+  --ok:#6FD39A; --ok-bg:#1C3527; --bad:#FF8A80; --bad-bg:#3F201E; --sel:#8AB4F8; --sel-bg:#21324B;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:1.45;-webkit-tap-highlight-color:transparent;overflow:hidden;-webkit-user-select:none;user-select:none}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+h1,h2,h3,p{margin:0;font-weight:normal}
+b,strong{font-weight:normal}
+
+/* ---------- Structure ---------- */
+#app{height:100%;display:flex;flex-direction:column}
+.top{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;gap:14px;padding:12px 16px}
+.round{width:48px;height:48px;border-radius:50%;border:0;background:var(--surface);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0;flex:none}
+.round svg{width:24px;height:24px}
+.round:disabled{opacity:.35;cursor:default}
+#topCenter{min-width:0;display:flex;align-items:center;justify-content:center;gap:10px}
+.ttl{font-size:17px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.segs{flex:1;display:flex;gap:4px}
+.segs i{flex:1;height:6px;border-radius:99px;background:var(--line);transition:background-color .3s}
+.segs i.on{background:var(--primary)}
+#main{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.wrap{zoom:var(--z,1);min-height:calc(100% / var(--z,1));max-width:720px;margin:0 auto;padding:8px 20px 28px;display:flex;flex-direction:column;gap:18px}
+.wrap.large{max-width:980px}
+.actions{margin-top:auto;padding-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+.actions>*{flex:1 1 200px}
+.actions.inline{margin-top:0;padding-top:0}
+.home-bottom{margin-top:auto;display:flex;flex-direction:column;gap:14px}
+.enter{animation:enterR .28s ease-out}
+@keyframes enterR{from{opacity:0;transform:translateX(28px)}}
+@keyframes pop{50%{transform:scale(1.06)}}
+@keyframes apparait{from{opacity:0;transform:scale(.94)}}
+
+/* ---------- Textes ---------- */
+h1{font-size:clamp(30px,5vw,40px);line-height:1.15;letter-spacing:-.015em}
+.lead{font-size:20px;color:var(--muted)}
+.q-label{font-size:22px;line-height:1.3}
+.small-label{font-size:16px;color:var(--muted)}
+.badge{align-self:flex-start;display:inline-flex;gap:6px;align-items:center;font-size:15px;padding:5px 12px;border-radius:999px;background:var(--surface);color:var(--muted)}
+
+/* ---------- Accueil ---------- */
+.hero{display:flex;justify-content:flex-start;margin:4px 0 -6px}
+.hero svg{width:min(240px,60%);height:auto}
+.slines{display:flex;flex-direction:column;gap:10px}
+.sline{display:flex;align-items:center;gap:14px;font-size:20px;line-height:1.35;text-align:left}
+.sline .ic{flex:none;width:44px;height:44px;border-radius:50%;background:var(--p-lav);display:flex;align-items:center;justify-content:center}
+.sline .ic svg{width:28px;height:28px}
+.sizes{display:flex;flex-direction:column;gap:8px}
+.size-pills{display:flex;gap:8px;flex-wrap:wrap}
+.size-pill{min-height:46px;padding:0 16px;border-radius:999px;border:0;background:var(--surface);font-size:16px;display:inline-flex;align-items:center;gap:6px}
+.size-pill svg{width:20px;height:20px}
+.size-pill[aria-pressed="true"]{background:var(--sel-bg);box-shadow:inset 0 0 0 2px var(--sel)}
+.foot{margin-top:8px;font-size:13px;line-height:1.6;color:var(--muted);text-align:left}
+
+/* Panneaux de l'accueil : « Mots à mémoriser » et « Réglages du rythme » */
+.panel{display:flex;flex-direction:column;gap:16px;padding:20px;border-radius:26px;background:var(--card);border:2px solid var(--line)}
+.ph{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:24px;line-height:1.2}
+.ph .ic{flex:none;width:48px;height:48px;border-radius:50%;background:var(--p-lav);display:flex;align-items:center;justify-content:center}
+.ph .ic svg{width:30px;height:30px}
+.count{font-size:16px;padding:4px 12px;border-radius:999px;background:var(--surface);color:var(--muted)}
+#mots{width:100%;min-height:220px;padding:14px 18px;border-radius:20px;border:2px solid var(--line-strong);background:var(--card);color:var(--ink);font:20px/1.5 Arial,Helvetica,sans-serif;resize:vertical;-webkit-user-select:text;user-select:text}
+#mots::placeholder{color:var(--muted)}
+.ligne-bas{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.boutons-mots{display:flex;gap:10px;flex-wrap:wrap}
+.btn.petit svg{width:24px;height:24px;vertical-align:-6px;margin-right:6px}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper .val{min-width:150px;padding:9px 16px;border-radius:999px;background:var(--surface);color:var(--ink);font-size:20px;text-align:center}
+/* Choix de la police du mot : chaque bouton montre un exemple dans sa police */
+.polices{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.police{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:64px;padding:6px 14px;border-radius:20px;border:0;background:var(--surface);color:var(--ink);text-align:left}
+.police .pex{font-size:28px;line-height:1.25;letter-spacing:0;font-feature-settings:"calt" 1,"liga" 1}
+.police .ptype{font-size:15px;line-height:1.3;color:var(--muted)}
+.police[aria-pressed="true"]{background:var(--sel-bg);box-shadow:inset 0 0 0 2px var(--sel)}
+
+/* ---------- Boutons ---------- */
+.btn{min-height:58px;padding:0 24px;border-radius:999px;border:0;background:var(--surface);color:var(--ink);font-size:19px;transition:transform .08s}
+.btn.primary{background:var(--primary);color:var(--primary-ink)}
+.btn.petit{flex:none;min-height:48px;padding:0 20px;font-size:17px}
+.btn.ic{display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.btn.ic svg{flex:none;width:24px;height:24px}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.35;cursor:default}
+
+/* ---------- Séance : regarder, puis écrire ---------- */
+.seance-haut{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pause-note{display:inline-flex;align-items:center;gap:6px;font-size:15px;padding:5px 12px;border-radius:999px;background:var(--p-yellow);color:var(--tile-ink)}
+.pause-note svg{width:16px;height:16px}
+.sline .ic.bleu{background:var(--p-blue)}
+.sline .ic.jaune{background:var(--p-yellow)}
+.consigne{font-size:22px}
+.stage{flex:1 1 0;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;border-radius:30px;background:var(--card);border:3px solid var(--line);text-align:center;overflow:hidden}
+.stage.lecture{border-color:#85B7EB}
+.stage.ecriture{border-color:#FAC775}
+.flash-word{display:block;width:100%;font-size:96px;font-family:var(--police-mot,Arial,Helvetica,sans-serif);font-weight:var(--poids-mot,bold);letter-spacing:0;font-feature-settings:"calt" 1,"liga" 1;line-height:1.3;color:var(--ink);overflow-wrap:normal;word-break:normal;-webkit-hyphens:none;hyphens:none;animation:apparait .3s ease-out}
+.aide-ecrire{display:flex;flex-direction:column;align-items:center;gap:12px}
+.aide-ecrire svg{width:140px;height:auto}
+.aide-ecrire p{font-size:26px}
+.cache{visibility:hidden}
+.temps{flex:none;height:12px;border-radius:99px;background:var(--line);overflow:hidden}
+.temps i{display:block;height:100%;width:100%;border-radius:99px;background:var(--phase-lecture);transition:width .1s linear}
+.temps.ecriture i{background:var(--phase-ecriture)}
+.seance-actions{margin-top:0}
+
+/* ---------- Correction (fin de séance) ---------- */
+.recap{display:flex;flex-direction:column;gap:16px;padding:24px;border-radius:30px;background:var(--card);border:1px solid var(--line)}
+.recap-head{display:flex;align-items:center;gap:18px}
+.fin-ico{flex:none;width:84px;height:84px;border-radius:50%;background:var(--p-yellow);display:flex;align-items:center;justify-content:center}
+.fin-ico svg{width:56px;height:56px}
+.liste-mots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.liste-mots li{display:flex;align-items:center;gap:12px;min-width:0;padding:8px 18px 8px 10px;border-radius:26px;background:var(--p-lav);color:var(--lav-ink)}
+.liste-mots .num{flex:none;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;font-size:17px}
+.liste-mots .lm{min-width:0;font-size:26px;font-family:var(--police-mot,Arial,Helvetica,sans-serif);font-weight:var(--poids-mot,bold);letter-spacing:0;font-feature-settings:"calt" 1,"liga" 1;line-height:1.3;overflow-wrap:anywhere}
+.tip{display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-radius:22px;background:var(--p-yellow);color:var(--tile-ink);font-size:19px}
+.tip svg{flex:none;width:34px;height:34px}
+
+/* ---------- Aide pas-à-pas ---------- */
+.modal{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(31,41,51,.28)}
+.modal.on{display:flex}
+.mbox{zoom:var(--z,1);width:min(620px,100%);max-height:calc(100% / var(--z,1));overflow:auto;background:var(--card);border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:16px}
+.mtop{display:flex;align-items:center;gap:12px}
+.mtop .segs{flex:1}
+.mbox h2{font-size:26px}
+.mnav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mnav .btn{min-width:130px}
+.etape-n{margin-bottom:-12px}
+.etape-titre{font-size:clamp(30px,5vw,40px);line-height:1.15}
+.etape-nav{margin-top:auto;padding:10px 0 4px;position:sticky;bottom:0;background:var(--bg);z-index:2}
+.etape-nav .btn{flex:1 1 0}
+.scount{font-size:16px;color:var(--muted)}
+
+/* Réglages en haut de l'accueil (Style + Taille du texte) */
+.reglages{display:flex;flex-wrap:wrap;gap:12px 28px;padding-bottom:4px}
+.reglages .size-pill{min-height:44px}
+/* Style « Simple » (épuré) : fond blanc, gris doux, sans aplats pastel.
+   Restent en couleur : les mots en évidence, les pictogrammes et la couleur des 2 temps (regarder / écrire). */
+body.simple{
+  --bg:#FFFFFF; --surface:#F2F3F5; --card:#FFFFFF; --ink:#1F2933; --muted:#6B7280; --line:#E4E7EB; --line-strong:#B9C0C9;
+  --focus:#1F2933; --primary:#1F2933; --primary-ink:#FFFFFF; --sel:#1F2933; --sel-bg:#1F2933;
+  --p-lav:#F2F3F5; --lav-ink:#1F2933; --tile-ink:#1F2933;
+  --ok:#22804A; --ok-bg:#E3F5E9; --ok-strong:#2FA05C; --bad:#B42A20; --bad-bg:#FCE7E5; --bad-strong:#D9473B;
+  background:#FFFFFF;
+}
+body.simple .hero{display:none}
+body.simple .sline .ic,body.simple .ph .ic{background:var(--surface)}
+body.simple .size-pill[aria-pressed="true"],body.simple .police[aria-pressed="true"]{color:#FFFFFF;box-shadow:none}
+body.simple .police[aria-pressed="true"] .ptype{color:#FFFFFF}
+body.simple .panel{border:1.5px solid var(--line)}
+body.simple .badge,body.simple .tip,body.simple .fin-ico,body.simple .pause-note{background:var(--surface)}
+body.simple .segs i.on{background:#1F2933}
+body.simple .liste-mots li{background:var(--surface)}
+body.simple .liste-mots .num{background:#FFFFFF}
+@media (prefers-reduced-motion:reduce){
+  .enter,.flash-word{animation:none}
+  .segs i,.temps i{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <button id="homeBtn" class="round" type="button" aria-label="Accueil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4l8 7.2V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg></button>
+    <div id="topCenter"></div>
+    <button id="listenBtn" class="round" type="button" aria-label="Écouter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9c1.5 1.6 1.5 4.4 0 6M18.6 6.4c3 3.2 3 8 0 11.2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
+  </header>
+  <main id="main"></main>
+  <div class="modal" id="helpModal" role="dialog" aria-modal="true" aria-label="Comment jouer ?">
+    <div class="mbox">
+      <div class="mtop"><div class="segs" id="helpSegs"></div><button class="round" type="button" id="helpClose" aria-label="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button></div>
+      <div id="helpBody"></div>
+      <div class="mnav"><button class="btn" type="button" id="helpPrev">Retour</button><span class="scount" id="helpCount"></span><button class="btn primary" type="button" id="helpNext">Suivant</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* =====================================================================
+   1. IDENTITÉ DE L'APPLI
+   ===================================================================== */
+const APP={
+  titre:'Dictée flash',
+  sousTitre:'Regarde le mot, puis écris-le de mémoire.',
+  version:'1.3',                     // +0.1 à chaque publication
+  sourceInternet:false,              // le point de départ est une appli créée avec Gemini
+  sourceAutre:'à partir d’une application créée par Angelo Malaguarnera avec Gemini',
+  cle:'dictee-flash'                 // préfixe localStorage — NE PLUS LE CHANGER après la 1re publication
+};
+
+/* =====================================================================
+   2. CONTENU
+   Le professeur colle sa liste (Word, Excel…) dans le cadre de l'accueil,
+   ou touche « Mots au hasard » pour piocher dans le vocabulaire de base ci-dessous.
+   ===================================================================== */
+
+/* Vocabulaire de base 8-9 ans (3e primaire), 400 mots. Liste proposée par IA (DeepSeek), relue par Claude, à vérifier par Ludo. */
+const MOTS_BASE=[
+  'maison','école','cheval','oiseau','chat','chien','arbre','fleur','jardin','être','avoir','aller',
+  'faire','grand','petit','gros','toujours','beaucoup','maintenant','pendant','cour','classe','table','chaise',
+  'porte','fenêtre','lit','cuisine','salle','dire','voir','savoir','pouvoir','beau','joli','jeune',
+  'souvent','parfois','jamais','déjà','livre','cahier','crayon','stylo','règle','gomme','cartable','papier',
+  'image','vouloir','venir','prendre','donner','vieux','bon','mauvais','encore','bientôt','tard','tôt',
+  'histoire','mot','phrase','lettre','nombre','jour','semaine','mois','année','parler','aimer','manger',
+  'boire','chaud','froid','heureux','ici','là','dehors','dedans','matin','soir','nuit','heure',
+  'minute','soleil','lune','étoile','ciel','dormir','courir','marcher','sauter','triste','content','fort',
+  'devant','derrière','dessus','dessous','terre','mer','rivière','montagne','forêt','champ','route','chemin',
+  'ville','jouer','lire','écrire','dessiner','faible','rapide','lent','loin','près','vite','bien',
+  'village','rue','place','magasin','marché','pain','lait','eau','fruit','chanter','danser','écouter',
+  'regarder','propre','sale','plein','mal','mieux','moins','plus','pomme','légume','soupe','viande',
+  'poisson','œuf','fromage','gâteau','sucre','ouvrir','fermer','porter','tenir','vide','clair','sombre',
+  'très','trop','assez','presque','sel','assiette','verre','couteau','cuillère','fourchette','main','pied',
+  'tête','partir','arriver','rentrer','tomber','doux','dur','facile','ensemble','aussi','alors','ensuite',
+  'œil','oreille','bouche','nez','bras','jambe','cœur','corps','visage','monter','descendre','travailler',
+  'apprendre','difficile','long','court','puis','quand','comment','pourquoi','frère','sœur','oncle','tante',
+  'cousin','voisin','ami','bébé','enfant','garçon','fille','dame','boulanger','facteur','médecin','policier',
+  'pompier','fermier','vache','cochon','mouton','poule','canard','lapin','souris','loup','renard','écureuil',
+  'grenouille','papillon','salon','chambre','toit','mur','escalier','clé','tableau','horloge','miroir','lampe',
+  'savon','serviette','couverture','armoire','tiroir','pantalon','chemise','robe','jupe','chaussette','chaussure','manteau',
+  'chapeau','écharpe','gant','banane','orange','fraise','cerise','carotte','tomate','salade','riz','farine',
+  'beurre','confiture','chocolat','pluie','neige','vent','nuage','orage','brouillard','feuille','pierre','devoir',
+  'leçon','exercice','élève','dictionnaire','trousse','voiture','vélo','train','avion','bateau','gare','pont',
+  'parc','bibliothèque','aider','acheter','apporter','attraper','attendre','avancer','cacher','chercher','choisir','coller',
+  'colorier','commencer','cuisiner','découper','demander','entendre','entrer','essayer','expliquer','finir','gagner','goûter',
+  'laver','lever','montrer','nettoyer','oublier','payer','peindre','penser','perdre','plier','poser','pousser',
+  'préparer','raconter','ranger','répondre','rester','réussir','rêver','sentir','sortir','tirer','trouver','gentil',
+  'poli','drôle','joyeux','calme','courageux','curieux','intelligent','attentif','sage','sérieux','timide','malade',
+  'fatigué','léger','lourd','mouillé','sec','tiède','brillant','coloré','rond','carré','pointu','plat',
+  'épais','mince','étroit','large','haut','bas','profond','ancien','nouveau','dernier','après','avant',
+  'avec','sans','chez','vers','contre','entre','depuis','hier','aujourd\'hui','demain','rarement','lentement',
+  'doucement','peu','tellement','vraiment','environ','surtout','donc','car','mais','combien','où','enfin',
+  'soudain','partout','voici','voilà'
+];
+const NB_HASARD=10;                  // nombre de mots tirés au hasard
+
+/* Polices du mot : le choix de l'appli d'origine (identifiants fixes, mémorisés sur l'iPad).
+   famille : police puis polices de secours ; poids : graisse réellement chargée. */
+const POLICES=[
+  {id:'marelle', nom:'Marelle',     type:'cursive officielle',     famille:"'Marelle','Edu SA Beginner',cursive",          poids:400},
+  {id:'marelle2',nom:'Marelle 2',   type:'cursive, variante',      famille:"'Marelle2','Marelle','Edu SA Beginner',cursive",poids:400},
+  {id:'lexend',  nom:'Lexend',      type:'bâton très lisible',     famille:"'Lexend',Arial,Helvetica,sans-serif",            poids:600},
+  {id:'edu',     nom:'Edu SA',      type:'cursive d’apprentissage',famille:"'Edu SA Beginner',cursive",              poids:600},
+  {id:'caveat',  nom:'Caveat',      type:'manuscrite libre',       famille:"'Caveat',cursive",                              poids:700},
+  {id:'comic',   nom:'Comic Neue',  type:'script',                 famille:"'Comic Neue',Arial,Helvetica,sans-serif",        poids:700},
+  {id:'dyslexic',nom:'OpenDyslexic',type:'accessibilité',          famille:"'OpenDyslexic',Arial,Helvetica,sans-serif",      poids:400}
+];
+const POLICE_DEPART='marelle';       // comme dans l'appli d'origine
+const EXEMPLE_POLICE='château';      // mot montré sur chaque bouton de police
+
+/* Rythme : durées en secondes (mêmes limites et mêmes valeurs de départ que l'appli d'origine) */
+const RYTHME={
+  lecture:{min:2,max:15,pas:1,defaut:5},
+  ecriture:{min:5,max:60,pas:5,defaut:20}
+};
+
+/* Lignes FALC de l'accueil : [icône, phrase courte] — les durées suivent les réglages */
+function lignesAccueil(){return [
+  ['oeil','Regarde bien le mot pendant '+R.lecture+' secondes.'],
+  ['crayon','Ensuite, écris-le sur ta feuille. Tu as '+R.ecriture+' secondes.'],
+  ['liste','À la fin, corrige ta feuille avec la liste.']
+];}
+
+/* Aide « Comment jouer ? » : une étape par écran */
+function etapes(){return [
+  {titre:'Prépare tes mots',lignes:[['liste','Colle ta liste de mots dans le cadre.'],['crayon','Ou écris tes mots, un mot par ligne.'],['de','Ou touche « Mots au hasard ».'],['doigt','Touche « Suivant ».']]},
+  {titre:'Regarde le mot',lignes:[['oeil','Le mot reste '+R.lecture+' secondes. Regarde-le bien.'],['ecouter','Touche le haut-parleur pour l’entendre.'],['suivant','Tu as bien regardé ? Touche « J’écris ».']]},
+  {titre:'Écris le mot',lignes:[['feuille','Le mot disparaît.'],['crayon','Écris-le sur ta feuille. Tu as '+R.ecriture+' secondes.'],['suivant','Tu as fini ? Touche « Mot suivant ».']]},
+  {titre:'Besoin d’une pause ?',lignes:[['pause','Touche « Pause » pour t’arrêter.'],['suivant','Touche « Reprendre » pour continuer.']]},
+  {titre:'À la fin',lignes:[['liste','Tu vois tous les mots.'],['ok','Compare avec ta feuille.'],['crayon','Corrige tes erreurs.']]}
+];}
+
+/* =====================================================================
+   3. ILLUSTRATIONS FLAT (SVG)
+   ===================================================================== */
+function svg(body,vb){return '<svg viewBox="'+(vb||'0 0 64 64')+'" aria-hidden="true">'+body+'</svg>';}
+const CRAYON='<rect x="25" y="6" width="14" height="10" rx="3" fill="#ED93B1"/><rect x="25" y="15" width="14" height="4" fill="#AFA9EC"/><rect x="25" y="19" width="14" height="27" fill="#FAC775"/><rect x="32" y="19" width="7" height="27" fill="#EF9F27"/><path d="M25 46h14l-7 13z" fill="#F0997B"/><path d="M29.5 54.3h5L32 59z" fill="#854F0B"/>';
+const ICONS={
+  lire:svg('<rect x="14" y="8" width="36" height="48" rx="7" fill="#85B7EB"/><rect x="20" y="17" width="24" height="4" rx="2" fill="#E6F1FB"/><rect x="20" y="26" width="24" height="4" rx="2" fill="#E6F1FB"/><rect x="20" y="35" width="16" height="4" rx="2" fill="#E6F1FB"/>'),
+  ecouter:svg('<path d="M10 25h9l13-11v36L19 39h-9z" fill="#D85A30"/><path d="M39 24c4 4.5 4 11.5 0 16M45 18c7.5 7.6 7.5 20.4 0 28" stroke="#F0997B" stroke-width="4" fill="none" stroke-linecap="round"/>'),
+  /* « toucher » : index qui touche une cible. Ne jamais dessiner un doigt seul levé (confondu avec un majeur). */
+  doigt:svg('<circle cx="18" cy="17" r="11" fill="none" stroke="#AFA9EC" stroke-width="2.5"/><circle cx="18" cy="17" r="5" fill="#AFA9EC"/><g transform="rotate(-35 38 42)"><rect x="20" y="36" width="10" height="13" rx="5" fill="#F0997B"/><rect x="31" y="14" width="10" height="28" rx="5" fill="#F0997B"/><rect x="26" y="32" width="26" height="22" rx="9" fill="#F0997B"/><path d="M44 37h5M44 43h5M44 49h4" stroke="#D85A30" stroke-width="2.5" stroke-linecap="round"/></g>'),
+  etoile:svg('<path d="M32 8l7 15 16 2-12 11 3 16-14-8-14 8 3-16L9 25l16-2z" fill="#FAC775"/><path d="M32 18l3.5 8 8.5 1" stroke="#EF9F27" stroke-width="3" fill="none" stroke-linecap="round"/>'),
+  ok:svg('<circle cx="32" cy="32" r="22" fill="#97C459"/><path d="M22 32l7 7 13-14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'),
+  oeil:svg('<path d="M4 32c8-13 17-19 28-19s20 6 28 19c-8 13-17 19-28 19S12 45 4 32z" fill="#378ADD"/><path d="M11 32c6-9 13-13 21-13s15 4 21 13c-6 9-13 13-21 13s-15-4-21-13z" fill="#FFFFFF"/><circle cx="32" cy="32" r="10" fill="#85B7EB"/><circle cx="32" cy="32" r="5" fill="#185FA5"/><circle cx="35" cy="29" r="2" fill="#FFFFFF"/>'),
+  crayon:svg('<g transform="rotate(45 32 32)">'+CRAYON+'</g>'),
+  feuille:svg('<path d="M16 6h22l12 12v36a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#85B7EB"/><path d="M38 6v9a3 3 0 0 0 3 3h9z" fill="#378ADD"/>'),
+  de:svg('<rect x="10" y="10" width="44" height="44" rx="12" fill="#AFA9EC"/><circle cx="22" cy="22" r="4.5" fill="#FFFFFF"/><circle cx="32" cy="32" r="4.5" fill="#FFFFFF"/><circle cx="42" cy="42" r="4.5" fill="#FFFFFF"/>'),
+  liste:svg('<rect x="10" y="8" width="44" height="48" rx="9" fill="#9FE1CB"/><circle cx="21" cy="22" r="4" fill="#1D9E75"/><rect x="29" y="19.5" width="17" height="5" rx="2.5" fill="#FFFFFF"/><circle cx="21" cy="33" r="4" fill="#1D9E75"/><rect x="29" y="30.5" width="17" height="5" rx="2.5" fill="#FFFFFF"/><circle cx="21" cy="44" r="4" fill="#1D9E75"/><rect x="29" y="41.5" width="12" height="5" rx="2.5" fill="#FFFFFF"/>'),
+  police:svg('<rect x="8" y="8" width="48" height="48" rx="12" fill="#F0997B"/><path d="M19 46 29 18h4l10 28" stroke="#FFFFFF" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M23.5 36h15" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>'),
+  sablier:svg('<rect x="14" y="6" width="36" height="6" rx="3" fill="#BA7517"/><rect x="14" y="52" width="36" height="6" rx="3" fill="#BA7517"/><path d="M18 12h28c0 10-8 14-11 20 3 6 11 10 11 20H18c0-10 8-14 11-20-3-6-11-10-11-20z" fill="#FAC775"/><path d="M24 48c2-5 5-7 8-9 3 2 6 4 8 9z" fill="#EF9F27"/><path d="M26 18h12c-2 4-4 6-6 7-2-1-4-3-6-7z" fill="#EF9F27"/>'),
+  pause:svg('<circle cx="32" cy="32" r="24" fill="#85B7EB"/><rect x="23" y="20" width="6" height="24" rx="2" fill="#FFFFFF"/><rect x="35" y="20" width="6" height="24" rx="2" fill="#FFFFFF"/>'),
+  suivant:svg('<circle cx="32" cy="32" r="24" fill="#97C459"/><path d="M21 32h20M33 24l8 8-8 8" stroke="#FFFFFF" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'),
+  ecrire:svg('<ellipse cx="56" cy="92" rx="44" ry="5" fill="#DCF1E4"/><rect x="18" y="8" width="62" height="78" rx="10" fill="#DCE9FB"/><rect x="28" y="24" width="40" height="5" rx="2.5" fill="#85B7EB"/><rect x="28" y="38" width="34" height="5" rx="2.5" fill="#85B7EB"/><rect x="28" y="52" width="24" height="5" rx="2.5" fill="#85B7EB"/><g transform="rotate(40 84 50)"><rect x="78" y="14" width="13" height="9" rx="3" fill="#ED93B1"/><rect x="78" y="22" width="13" height="4" fill="#AFA9EC"/><rect x="78" y="26" width="13" height="38" fill="#FAC775"/><rect x="84.5" y="26" width="6.5" height="38" fill="#EF9F27"/><path d="M78 64h13l-6.5 12z" fill="#F0997B"/><path d="M82.3 72h4.4l-2.2 4z" fill="#854F0B"/></g>','0 0 120 100'),
+  hero:svg('<ellipse cx="110" cy="100" rx="92" ry="7" fill="#DCF1E4"/><rect x="16" y="16" width="92" height="74" rx="16" fill="#AFA9EC"/><path d="M32 44c7-11 16-16 30-16s23 5 30 16c-7 11-16 16-30 16s-23-5-30-16z" fill="#EEEDFE"/><circle cx="62" cy="44" r="10" fill="#7F77DD"/><circle cx="62" cy="44" r="4.5" fill="#3C3489"/><circle cx="65" cy="41" r="2" fill="#FFFFFF"/><rect x="34" y="68" width="56" height="10" rx="5" fill="#7F77DD"/><path d="M119 18l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#FAC775"/><circle cx="206" cy="20" r="4" fill="#F0997B"/><rect x="132" y="22" width="66" height="72" rx="10" fill="#DCE9FB"/><rect x="142" y="38" width="44" height="5" rx="2.5" fill="#85B7EB"/><rect x="142" y="52" width="36" height="5" rx="2.5" fill="#85B7EB"/><rect x="142" y="66" width="26" height="5" rx="2.5" fill="#85B7EB"/><g transform="rotate(38 186 60)"><rect x="180" y="26" width="12" height="8" rx="3" fill="#ED93B1"/><rect x="180" y="33" width="12" height="4" fill="#7F77DD"/><rect x="180" y="37" width="12" height="34" fill="#FAC775"/><rect x="186" y="37" width="6" height="34" fill="#EF9F27"/><path d="M180 71h12l-6 11z" fill="#F0997B"/><path d="M184 78.3h4L186 82z" fill="#854F0B"/></g>','0 0 220 110')
+};
+/* Pictogrammes d'interface (une couleur, celle du bouton) */
+const UI={
+  pause:svg('<rect x="6" y="5" width="4.5" height="14" rx="1.5" fill="currentColor"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.5" fill="currentColor"/>','0 0 24 24'),
+  play:svg('<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/>','0 0 24 24'),
+  fleche:svg('<path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>','0 0 24 24'),
+  moins:svg('<path d="M6 12h12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>','0 0 24 24'),
+  plus:svg('<path d="M6 12h12M12 6v12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>','0 0 24 24'),
+  de:svg('<rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="2.2" fill="none"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/><circle cx="15" cy="15" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>','0 0 24 24'),
+};
+
+/* =====================================================================
+   4. OUTILS
+   ===================================================================== */
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function store(k,v){try{if(v===undefined){return JSON.parse(localStorage.getItem(APP.cle+'-'+k));}localStorage.setItem(APP.cle+'-'+k,JSON.stringify(v));}catch(e){return null;}}
+
+/* Voix : seulement quand l'élève touche Écouter */
+const synth=window.speechSynthesis||null;
+function say(t){if(!synth||!t)return;try{synth.cancel();const u=new SpeechSynthesisUtterance(t);const v=synth.getVoices();const fr=v.find(x=>/fr[-_]BE/i.test(x.lang))||v.find(x=>/^fr/i.test(x.lang));u.lang=fr?fr.lang:'fr-FR';if(fr)u.voice=fr;u.rate=.9;synth.speak(u);}catch(e){}}
+
+/* Taille du texte mémorisée sur l'iPad */
+function zoomLevel(){const z=store('taille');return ['0.9','1','1.15'].indexOf(z)>=0?z:'1';}
+function setZoom(z){document.documentElement.style.setProperty('--z',z);store('taille',z);}
+setZoom(zoomLevel());
+/* Style mémorisé sur l'iPad : 'couleurs' (par défaut) ou 'simple' (épuré). Classe sur body, jamais data-theme. */
+function styleActuel(){return store('style')==='simple'?'simple':'couleurs';}
+function setStyle(s){store('style',s);document.body.classList.toggle('simple',s==='simple');}
+setStyle(styleActuel());
+
+/* Données qui survivent aux mises à jour : ne jamais changer APP.cle ni les noms passés à store()
+   ('taille', 'style', 'mots', 'lecture', 'ecriture', 'son', 'page', 'police').
+   Si le format d'une donnée change, augmenter DONNEES_VERSION et convertir ici. */
+const DONNEES_VERSION=1;
+function migrerDonnees(){
+  const v=Number(store('donnees-version'))||0;
+  if(v!==DONNEES_VERSION)store('donnees-version',DONNEES_VERSION);
+}
+migrerDonnees();
+
+/* Mots : un par ligne, ou séparés par des virgules, des points-virgules ou des tabulations (copie d'Excel).
+   Une liste copiée de Word peut garder ses puces ou ses numéros (« • maison », « 1. maison ») : on les enlève. */
+function decouper(t){return String(t||'').split(/[\n\r\t,;]+/)
+  .map(w=>w.trim().replace(/^(?:[•◦▪·\-–—*]+|\d+[.)])\s*/,'').trim())
+  .filter(w=>w&&!/^\d+[.)]?$/.test(w));}
+function tirerMots(n){const a=MOTS_BASE.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,n);}
+function nbMotsTexte(n){return n+(n>1?' mots':' mot');}
+
+/* Réglages de la séance, mémorisés sur l'iPad (valeurs vérifiées : une donnée abîmée reprend la valeur de départ) */
+function borne(v,r){v=Math.round((v-r.min)/r.pas)*r.pas+r.min;return Math.min(r.max,Math.max(r.min,v));}
+function lireDuree(nom){const v=store(nom);return (typeof v==='number'&&isFinite(v))?borne(v,RYTHME[nom]):RYTHME[nom].defaut;}
+const R={
+  lecture:lireDuree('lecture'),
+  ecriture:lireDuree('ecriture'),
+  son:store('son')===true,                       // signal sonore doux : coupé au départ
+  page:store('page')==='blanche'?'blanche':'aide',
+  police:(()=>{const p=store('police');return POLICES.some(x=>x.id===p)?p:POLICE_DEPART;})(),
+  texte:(()=>{const t=store('mots');return typeof t==='string'?t:'';})()      // vide au départ : on colle sa liste
+};
+/* Police du mot : appliquée au mot de la séance et à la liste de correction */
+function appliquerPolice(){
+  const p=POLICES.find(x=>x.id===R.police)||POLICES[0];
+  document.documentElement.style.setProperty('--police-mot',p.famille);
+  document.documentElement.style.setProperty('--poids-mot',String(p.poids));
+}
+appliquerPolice();
+/* Quand une police finit de se charger, la taille du mot est recalculée (les largeurs changent) */
+if(document.fonts){try{document.fonts.addEventListener('loadingdone',()=>layout());document.fonts.ready.then(()=>layout());}catch(e){}}
+
+/* Signal sonore doux quand le mot change (si activé). Créé au premier toucher, sinon l'iPad le bloque. */
+let actx=null;
+function sonPret(){if(!R.son)return;try{if(!actx){const AC=window.AudioContext||window.webkitAudioContext;if(AC)actx=new AC();}if(actx&&actx.state==='suspended')actx.resume();}catch(e){}}
+function bip(f,type,d,delai){try{const t=actx.currentTime+(delai||0),o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);}catch(e){}}
+function signal(phase){if(!R.son||!actx)return;if(phase==='lecture'){bip(523.25,'sine',.2,0);bip(659.25,'sine',.25,.1);}else bip(440,'triangle',.3,0);}
+
+/* Garder l'écran allumé pendant la séance (iPad récent ; sans effet ailleurs) */
+let verrou=null;
+async function garderEcranAllume(on){
+  try{
+    if(on){if(!verrou&&navigator.wakeLock){verrou=await navigator.wakeLock.request('screen');verrou.addEventListener('release',()=>{verrou=null;});}}
+    else if(verrou){const v=verrou;verrou=null;await v.release();}
+  }catch(e){verrou=null;}
+}
+
+
+/* =====================================================================
+   5. EN-TÊTE, VUES
+   ===================================================================== */
+const S={listen:null};
+const main=$('#main');
+function header(o){o=o||{};
+  $('#homeBtn').style.visibility=o.home===false?'hidden':'visible';
+  S.listen=o.listen||null;$('#listenBtn').style.visibility=S.listen?'visible':'hidden';
+  let c='';if(o.segs)c='<div class="segs">'+Array.from({length:o.segs[1]},(_,i)=>'<i class="'+(i<o.segs[0]?'on':'')+'"></i>').join('')+'</div>';
+  else if(o.title)c='<span class="ttl">'+esc(o.title)+'</span>';
+  $('#topCenter').innerHTML=c;}
+function view(html,large){main.innerHTML='<div class="wrap enter'+(large?' large':'')+'">'+html+'</div>';main.scrollTop=0;layout();}
+function line(ic,txt){return '<div class="sline"><span class="ic">'+(ICONS[ic]||'')+'</span><span>'+esc(txt)+'</span></div>';}
+$('#homeBtn').addEventListener('click',()=>{if(synth)synth.cancel();renderHome();});
+$('#listenBtn').addEventListener('click',()=>{if(S.listen)S.listen();});
+
+/* =====================================================================
+   6. ÉCRANS
+   ===================================================================== */
+function mentions(){
+  const src=APP.sourceInternet?' à partir d’un document Internet':(APP.sourceAutre?' '+APP.sourceAutre:'');
+  return '<div class="foot">Version '+esc(APP.version)+'<br>Application produite par IA'+esc(src)+'. Des erreurs peuvent survenir.<br>Application développée par Claude AI sous la supervision de Riga Ludovic.<br>Licence <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener" style="color:inherit">CC BY-NC-SA 4.0</a>.</div>';}
+
+function pills(titre,attr,choix,actuel){
+  return '<div class="sizes"><span class="small-label">'+esc(titre)+'</span><div class="size-pills">'+
+    choix.map(c=>'<button type="button" class="size-pill" '+attr+'="'+c[0]+'" aria-pressed="'+(actuel===c[0])+'">'+c[1]+'</button>').join('')+'</div></div>';}
+function stepper(cle,titre,conseil){
+  const r=RYTHME[cle],v=R[cle];
+  return '<div class="sizes"><span class="small-label">'+esc(titre)+'</span><div class="stepper">'+
+    '<button type="button" class="round" data-moins="'+cle+'" aria-label="Moins de secondes"'+(v<=r.min?' disabled':'')+'>'+UI.moins+'</button>'+
+    '<span class="val" id="val-'+cle+'">'+v+' secondes</span>'+
+    '<button type="button" class="round" data-plus="'+cle+'" aria-label="Plus de secondes"'+(v>=r.max?' disabled':'')+'>'+UI.plus+'</button></div>'+
+    '<span class="small-label">'+esc(conseil)+'</span></div>';}
+
+/* ---------- Accueil : mots à mémoriser + réglages du rythme ---------- */
+function renderHome(){
+  quitter();
+  header({home:false,listen:()=>say(lignesAccueil().map(l=>l[1]).join(' '))});
+  view('<div class="reglages">'+
+      pills('Style','data-sty',[['couleurs','Couleurs'],['simple','Simple']],styleActuel())+
+      '<div class="sizes"><span class="small-label">Taille du texte</span><div class="size-pills">'+
+      [['0.9','Petit'],['1','Moyen'],['1.15','Grand']].map(z=>'<button type="button" class="size-pill" data-z="'+z[0]+'" aria-pressed="'+(zoomLevel()===z[0])+'"><span style="font-size:'+(16*Number(z[0]))+'px">A</span> '+z[1]+'</button>').join('')+
+      '</div></div>'+
+    '</div>'+
+    '<div class="hero">'+ICONS.hero+'</div>'+
+    '<h1>'+esc(APP.titre)+'</h1>'+
+    '<p class="lead">'+esc(APP.sousTitre)+'</p>'+
+    '<div class="slines">'+lignesAccueil().map(l=>line(l[0],l[1])).join('')+'</div>'+
+    '<div class="actions inline"><button type="button" class="btn primary" id="startBtn">Commencer</button><button type="button" class="btn" id="helpBtn">Comment jouer ?</button></div>'+
+    '<div class="home-bottom">'+mentions()+'</div>');
+
+  $('#startBtn').addEventListener('click',()=>renderEtape(1));
+  $('#helpBtn').addEventListener('click',openHelp);
+  const presser=(attr,b)=>$$('['+attr+']',main).forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  $$('[data-z]',main).forEach(b=>b.addEventListener('click',()=>{setZoom(b.dataset.z);presser('data-z',b);layout();}));
+  $$('[data-sty]',main).forEach(b=>b.addEventListener('click',()=>{setStyle(b.dataset.sty);presser('data-sty',b);}));
+}
+
+/* ---------- Préparation en 3 étapes : les mots, le rythme, l'affichage ---------- */
+const ETAPES=[
+  {titre:'Les mots',ic:'liste',dire:'Colle ou écris tes mots. Ou touche « Mots au hasard ».'},
+  {titre:'Le rythme',ic:'sablier',dire:'Choisis le temps pour regarder le mot, puis le temps pour l’écrire.'},
+  {titre:'Affichage et son',ic:'police',dire:'Choisis la police du mot et le son. Puis touche « Commencer la dictée ».'}
+];
+function renderEtape(n,vide){
+  quitter();
+  const e=ETAPES[n-1];
+  header({segs:[n,ETAPES.length],listen:()=>say(e.dire)});
+  let corps='';
+  if(n===1)corps='<section class="panel" id="panMots">'+
+      '<h2 class="ph"><span>Mots à mémoriser</span><span class="count" id="nbMots">'+nbMotsTexte(decouper(R.texte).length)+'</span></h2>'+
+      '<label class="small-label" for="mots">Colle ou écris tes mots, un mot par ligne :</label>'+
+      '<textarea id="mots" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder="Colle ta liste ici.&#10;Exemple :&#10;château&#10;beaucoup&#10;toujours">'+esc(R.texte)+'</textarea>'+
+      '<div class="tip" id="videMsg"'+(vide?'':' hidden')+'>'+ICONS.crayon+'<span>Colle ou écris au moins 1 mot pour continuer.</span></div>'+
+      '<div class="ligne-bas"><span class="small-label">Tu peux coller une liste de Word ou d’Excel.</span><span class="boutons-mots"><button type="button" class="btn petit" id="hasardBtn">'+UI.de+'Mots au hasard</button><button type="button" class="btn petit" id="effacerBtn">Effacer tout</button></span></div>'+
+    '</section>';
+  if(n===2)corps='<section class="panel">'+
+      stepper('lecture','Temps pour regarder le mot','Conseil : 4 à 6 secondes.')+
+      stepper('ecriture','Temps pour écrire','Laisse assez de temps pour finir d’écrire.')+
+    '</section>';
+  if(n===3)corps='<section class="panel">'+
+      '<div class="sizes"><span class="small-label">Police du mot</span><div class="polices">'+
+        POLICES.map(p=>'<button type="button" class="police" data-police="'+p.id+'" aria-pressed="'+(R.police===p.id)+'">'+
+          '<span class="pex" style="font-family:'+esc(p.famille)+';font-weight:'+p.poids+'">'+esc(EXEMPLE_POLICE)+'</span>'+
+          '<span class="ptype">'+esc(p.nom)+' · '+esc(p.type)+'</span></button>').join('')+
+      '</div></div>'+
+      pills('Son quand le mot change','data-son',[['1','Oui'],['0','Non']],R.son?'1':'0')+
+      pills('Pendant l’écriture','data-page',[['aide','Aide visible'],['blanche','Page toute blanche']],R.page)+
+    '</section>';
+  view('<p class="small-label etape-n">Étape '+n+' sur '+ETAPES.length+'</p>'+
+    '<h1 class="ph etape-titre"><span class="ic">'+ICONS[e.ic]+'</span><span>'+esc(e.titre)+'</span></h1>'+corps+
+    '<div class="mnav etape-nav"><button type="button" class="btn" id="retourBtn">Retour</button>'+
+    '<button type="button" class="btn primary" id="suiteBtn">'+(n<ETAPES.length?'Suivant':'Commencer la dictée')+'</button></div>');
+
+  $('#retourBtn').addEventListener('click',()=>n>1?renderEtape(n-1):renderHome());
+  $('#suiteBtn').addEventListener('click',()=>n<ETAPES.length?(n===1&&!decouper(R.texte).length?renderEtape(1,true):renderEtape(n+1)):lancer());
+  const presser=(attr,b)=>$$('['+attr+']',main).forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+
+  if(n===1){
+    const ta=$('#mots',main);
+    const majMots=()=>{
+      store('mots',R.texte);
+      $('#nbMots',main).textContent=nbMotsTexte(decouper(R.texte).length);
+      if(decouper(R.texte).length)$('#videMsg',main).hidden=true;
+    };
+    ta.addEventListener('input',()=>{R.texte=ta.value;majMots();});
+    const eff=$('#effacerBtn',main);let effTimer=null;
+    eff.addEventListener('click',()=>{
+      if(!eff.dataset.ok){eff.dataset.ok='1';eff.textContent='Touche encore pour effacer';clearTimeout(effTimer);
+        effTimer=setTimeout(()=>{delete eff.dataset.ok;eff.textContent='Effacer tout';},4000);return;}
+      clearTimeout(effTimer);delete eff.dataset.ok;eff.textContent='Effacer tout';
+      R.texte='';ta.value='';majMots();
+    });
+    /* Mots au hasard : remplit le cadre avec NB_HASARD mots du vocabulaire de base */
+    const has=$('#hasardBtn',main);let hasTimer=null;
+    const hasTexte=has.innerHTML;
+    has.addEventListener('click',()=>{
+      if(decouper(R.texte).length&&!has.dataset.ok){has.dataset.ok='1';has.textContent='Touche encore pour remplacer';clearTimeout(hasTimer);
+        hasTimer=setTimeout(()=>{delete has.dataset.ok;has.innerHTML=hasTexte;},4000);return;}
+      clearTimeout(hasTimer);delete has.dataset.ok;has.innerHTML=hasTexte;
+      R.texte=tirerMots(NB_HASARD).join('\n');ta.value=R.texte;majMots();
+    });
+  }
+  if(n===2){
+    const majRythme=cle=>{
+      const r=RYTHME[cle];store(cle,R[cle]);
+      $('#val-'+cle,main).textContent=R[cle]+' secondes';
+      $('[data-moins="'+cle+'"]',main).disabled=R[cle]<=r.min;
+      $('[data-plus="'+cle+'"]',main).disabled=R[cle]>=r.max;
+    };
+    $$('[data-moins]',main).forEach(b=>b.addEventListener('click',()=>{const c=b.dataset.moins;R[c]=borne(R[c]-RYTHME[c].pas,RYTHME[c]);majRythme(c);}));
+    $$('[data-plus]',main).forEach(b=>b.addEventListener('click',()=>{const c=b.dataset.plus;R[c]=borne(R[c]+RYTHME[c].pas,RYTHME[c]);majRythme(c);}));
+  }
+  if(n===3){
+    $$('[data-son]',main).forEach(b=>b.addEventListener('click',()=>{R.son=b.dataset.son==='1';store('son',R.son);presser('data-son',b);if(R.son){sonPret();signal('lecture');}}));
+    $$('[data-page]',main).forEach(b=>b.addEventListener('click',()=>{R.page=b.dataset.page;store('page',R.page);presser('data-page',b);}));
+    $$('[data-police]',main).forEach(b=>b.addEventListener('click',()=>{R.police=b.dataset.police;store('police',R.police);appliquerPolice();presser('data-police',b);}));
+  }
+}
+
+/* ---------- Séance : le mot s'affiche, puis disparaît pour être écrit ---------- */
+const T={mots:[],i:0,phase:'idle',pause:false,duree:0,reste:0,fin:0,suite:null,timer:null};
+function enSeance(){return T.phase==='lecture'||T.phase==='ecriture';}
+
+function lancer(){
+  const mots=decouper(R.texte);
+  if(!mots.length){
+    renderEtape(1,true);
+    return;
+  }
+  sonPret();
+  T.mots=mots;T.i=0;
+  garderEcranAllume(true);
+  phaseLecture();
+}
+function phaseLecture(){
+  if(T.i>=T.mots.length)return finSeance();
+  T.phase='lecture';minuteur(R.lecture*1000,phaseEcriture);renderSeance();signal('lecture');
+}
+function phaseEcriture(){
+  T.phase='ecriture';minuteur(R.ecriture*1000,motSuivant);renderSeance();signal('ecriture');
+}
+function motSuivant(){T.i++;phaseLecture();}
+
+/* Minuteur basé sur l'heure réelle (reste juste même si l'iPad ralentit la page) */
+function minuteur(ms,suite){arreter();T.duree=ms;T.reste=ms;T.suite=suite;T.pause=false;demarrer();}
+function demarrer(){T.fin=Date.now()+T.reste;T.timer=setInterval(tic,100);}
+function arreter(){if(T.timer){clearInterval(T.timer);T.timer=null;}}
+function tic(){
+  T.reste=Math.max(0,T.fin-Date.now());majBarre();
+  if(T.reste<=0){arreter();const s=T.suite;T.suite=null;if(s)s();}
+}
+function majBarre(){const b=$('#barre',main);if(b)b.style.width=(T.duree?T.reste/T.duree*100:0)+'%';}
+function basculerPause(){
+  if(!enSeance())return;
+  if(T.pause){T.pause=false;demarrer();}
+  else{T.reste=Math.max(0,T.fin-Date.now());arreter();T.pause=true;}
+  const b=$('#pauseBtn',main);if(b)b.innerHTML=T.pause?UI.play+'Reprendre':UI.pause+'Pause';
+  const p=$('#pauseNote',main);if(p)p.hidden=!T.pause;
+  majBarre();
+}
+/* « J'écris » / « Mot suivant » : passe à l'étape suivante, même pendant une pause */
+function passer(){if(T.phase==='lecture')phaseEcriture();else if(T.phase==='ecriture')motSuivant();}
+function quitter(){arreter();T.phase='idle';T.pause=false;T.suite=null;garderEcranAllume(false);if(synth)synth.cancel();}
+
+function renderSeance(){
+  const lect=T.phase==='lecture',mot=T.mots[T.i],n=T.mots.length,dernier=T.i===n-1,blanche=!lect&&R.page==='blanche';
+  header({segs:[T.i,n],listen:()=>say(mot)});
+  view('<div class="seance-haut"><span class="badge">Mot '+(T.i+1)+' sur '+n+'</span><span class="pause-note" id="pauseNote"'+(T.pause?'':' hidden')+'>'+UI.pause+'En pause</span></div>'+
+    '<div class="sline consigne"><span class="ic '+(lect?'bleu':'jaune')+'">'+(lect?ICONS.oeil:ICONS.crayon)+'</span><span>'+(lect?'Regarde bien le mot.':'Écris le mot sur ta feuille.')+'</span></div>'+
+    '<div class="stage '+(lect?'lecture':'ecriture')+'">'+
+      (lect?'<span class="flash-word">'+esc(mot)+'</span>'
+           :'<div class="aide-ecrire'+(blanche?' cache':'')+'">'+ICONS.ecrire+'<p>À toi d’écrire !</p></div>')+
+    '</div>'+
+    '<div class="temps '+(lect?'lecture':'ecriture')+(blanche?' cache':'')+'"><i id="barre"></i></div>'+
+    '<div class="actions seance-actions">'+
+      '<button type="button" class="btn ic" id="pauseBtn">'+(T.pause?UI.play+'Reprendre':UI.pause+'Pause')+'</button>'+
+      '<button type="button" class="btn primary ic" id="suivantBtn">'+(lect?'J’écris':dernier?'J’ai fini':'Mot suivant')+UI.fleche+'</button>'+
+    '</div>',true);
+  $('#pauseBtn').addEventListener('click',basculerPause);
+  $('#suivantBtn').addEventListener('click',passer);
+  majBarre();
+}
+
+/* ---------- Correction : la liste complète pour corriger sa feuille ---------- */
+function finSeance(){quitter();T.phase='fin';renderFin();}
+function renderFin(){
+  const n=T.mots.length;
+  header({title:'Correction',listen:()=>say('Voici les mots. '+T.mots.join('. ')+'.')});
+  view('<div class="recap"><div class="recap-head"><span class="fin-ico">'+ICONS.etoile+'</span>'+
+      '<div><h1>Séance terminée !</h1><p class="lead">'+(n>1?'Voici les '+n+' mots.':'Voici le mot.')+'</p></div></div>'+
+      '<ol class="liste-mots">'+T.mots.map((m,k)=>'<li><span class="num">'+(k+1)+'</span><span class="lm">'+esc(m)+'</span></li>').join('')+'</ol>'+
+    '</div>'+
+    '<div class="tip">'+ICONS.crayon+'<span>Compare chaque mot avec ta feuille.<br>Corrige tes erreurs.</span></div>'+
+    '<div class="actions"><button type="button" class="btn primary" id="againBtn">Recommencer la liste</button><button type="button" class="btn" id="homeBtn2">Accueil</button></div>',true);
+  $('#againBtn').addEventListener('click',lancer);
+  $('#homeBtn2').addEventListener('click',renderHome);
+}
+
+/* Raccourcis clavier (ordinateur du TVI) : Espace = pause, flèche droite = suivant, Échap = accueil */
+addEventListener('keydown',e=>{
+  if(!enSeance()||$('#helpModal').classList.contains('on'))return;
+  if(e.code==='Space'){if(e.target.closest&&e.target.closest('button'))return;e.preventDefault();basculerPause();}
+  else if(e.code==='ArrowRight'){e.preventDefault();passer();}
+  else if(e.code==='Escape'){e.preventDefault();renderHome();}
+});
+/* L'élève quitte l'appli ou l'écran s'éteint : la séance se met en pause */
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){if(enSeance()&&!T.pause)basculerPause();}
+  else if(enSeance())garderEcranAllume(true);
+});
+
+/* Crochet pour les tests automatiques (invisible pour l'élève) */
+window.__appli={etat:()=>({phase:T.phase,i:T.i,mot:T.mots[T.i]||null,mots:T.mots.slice(),pause:T.pause,reste:T.reste,duree:T.duree}),reglages:()=>Object.assign({},R),motsBase:()=>MOTS_BASE.slice(),tirerMots};
+
+/* =====================================================================
+   7. AIDE PAS-À-PAS
+   ===================================================================== */
+const H={i:0,e:[]};
+function openHelp(){H.i=0;H.e=etapes();renderHelp();$('#helpModal').classList.add('on');}
+function closeHelp(){$('#helpModal').classList.remove('on');}
+function renderHelp(){const n=H.e.length,e=H.e[H.i];
+  $('#helpSegs').innerHTML=H.e.map((_,k)=>'<i class="'+(k<=H.i?'on':'')+'"></i>').join('');
+  $('#helpBody').innerHTML='<h2>'+esc(e.titre)+'</h2><div class="slines" style="margin-top:14px">'+e.lignes.map(l=>line(l[0],l[1])).join('')+'</div>';
+  $('#helpCount').textContent='Étape '+(H.i+1)+' sur '+n;
+  $('#helpPrev').style.visibility=H.i?'visible':'hidden';
+  $('#helpNext').textContent=H.i===n-1?'J’ai compris':'Suivant';}
+function helpGo(d){if(H.i+d>=H.e.length)return closeHelp();H.i=Math.max(0,H.i+d);renderHelp();}
+$('#helpNext').addEventListener('click',()=>helpGo(1));
+$('#helpPrev').addEventListener('click',()=>helpGo(-1));
+$('#helpClose').addEventListener('click',closeHelp);
+let tx=null;const mb=$('#helpModal .mbox');
+mb.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
+mb.addEventListener('touchend',e=>{if(tx===null)return;const dx=e.changedTouches[0].clientX-tx;tx=null;if(Math.abs(dx)>60)helpGo(dx<0?1:-1);});
+
+/* =====================================================================
+   8. ADAPTATION PORTRAIT / PAYSAGE
+   La taille du mot est calculée d'après l'espace RÉELLEMENT disponible :
+   le plus grand possible, sans jamais dépasser ni couper un mot.
+   ===================================================================== */
+/* Les cursives (Marelle surtout) ont de très grandes boucles qui dépassent la ligne de texte.
+   On mesure l'encre réelle du mot dans sa police et on lui réserve la place (marges en em),
+   pour qu'aucune lettre ne soit coupée ni ne sorte de sa pastille. */
+let ctxMesure=null;
+function margesEncre(mot,L,pol){
+  try{
+    ctxMesure=ctxMesure||document.createElement('canvas').getContext('2d');
+    const p=POLICES.find(x=>x.id===(pol||R.police))||POLICES[0];
+    ctxMesure.font=p.poids+' 100px '+p.famille;
+    const m=ctxMesure.measureText(mot);
+    const fA=(m.fontBoundingBoxAscent||80)/100,fD=(m.fontBoundingBoxDescent||20)/100;
+    const iA=(m.actualBoundingBoxAscent||0)/100,iD=(m.actualBoundingBoxDescent||0)/100;
+    const base=(L-(fA+fD))/2+fA;                       // ligne de base, depuis le haut de la ligne
+    return [Math.max(0,iA-base)+.04,Math.max(0,base+iD-L)+.04];
+  }catch(e){return [.15,.15];}
+}
+function ajusterEncre(){
+  $$('.liste-mots .lm',main).forEach(el=>{const m=margesEncre(el.textContent,1.3);el.style.padding=m[0]+'em 0 '+m[1]+'em';});
+  $$('.police .pex',main).forEach(el=>{const m=margesEncre(el.textContent,1.25,el.parentElement.dataset.police);el.style.padding=m[0]+'em 0 '+m[1]+'em';});
+}
+function ajusterMot(){
+  const fw=$('.flash-word',main);if(!fw)return;
+  const mg=margesEncre(fw.textContent,1.3);fw.style.padding=mg[0]+'em 0 '+mg[1]+'em';
+  const st=fw.parentElement,cs=getComputedStyle(st);
+  const h=st.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  let t=Math.max(28,Math.min(150,Math.floor(h*.6)));
+  fw.style.fontSize=t+'px';
+  while(t>22&&(fw.scrollWidth>fw.clientWidth+1||fw.scrollHeight>h+1)){t-=2;fw.style.fontSize=t+'px';}
+}
+function layout(){
+  const W=innerWidth,Hh=innerHeight;
+  document.body.classList.toggle('portrait',Hh>W*1.05);
+  ajusterEncre();
+  ajusterMot();
+}
+let lt=null;const ro=new ResizeObserver(()=>{cancelAnimationFrame(lt);lt=requestAnimationFrame(layout);});
+ro.observe(document.body);
+addEventListener('orientationchange',()=>setTimeout(layout,250));
+
+renderHome();
+})();
+</script>
+</body>
+</html>
