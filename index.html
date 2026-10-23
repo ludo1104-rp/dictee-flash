@@ -187,6 +187,8 @@ body.simple .badge,body.simple .tip,body.simple .fin-ico,body.simple .pause-note
 body.simple .segs i.on{background:#0A0A0A}
 body.simple .liste-mots li{background:var(--surface)}
 body.simple .liste-mots .num{background:#FFFFFF}
+/* Étiquette « Nouveau » à côté du bouton Simple (couleurs fixes, lisibles en clair et en sombre) */
+.nouveau{margin-left:8px;padding:1px 8px;border-radius:999px;font-size:12px;line-height:1.6;background:#FAF0C8;color:#1F2933}
 @media (prefers-reduced-motion:reduce){
   .enter,.flash-word{animation:none}
   .segs i,.temps i{transition:none}
@@ -401,6 +403,11 @@ setZoom(zoomLevel());
 /* Style mémorisé sur l'iPad : 'couleurs' (par défaut) ou 'simple' (épuré). Classe sur body, jamais data-theme. */
 function styleActuel(){return store('style')==='simple'?'simple':'couleurs';}
 function setStyle(s){store('style',s);document.body.classList.toggle('simple',s==='simple');}
+/* Étiquette « Nouveau » sur le bouton Simple (sans animation) : disparaît dès qu'on touche un style, ou après 3 ouvertures. */
+const NOUVEAU_SIMPLE=(()=>{const n=store('nouveau-simple')||0;if(n>=0&&n<3)store('nouveau-simple',n+1);return n>=0&&n<3;})();
+function marquerNouveau(){const b=document.querySelector('[data-sty="simple"]');if(!b||!NOUVEAU_SIMPLE||store('nouveau-simple')===-1)return;
+  if(!b.querySelector('.nouveau'))b.insertAdjacentHTML('beforeend','<span class="nouveau">Nouveau</span>');
+  document.querySelectorAll('[data-sty]').forEach(x=>x.addEventListener('click',()=>{store('nouveau-simple',-1);document.querySelectorAll('.nouveau').forEach(e=>e.remove());}));}
 setStyle(styleActuel());
 
 /* Données qui survivent aux mises à jour : ne jamais changer APP.cle ni les noms passés à store()
@@ -514,6 +521,7 @@ function renderHome(){
   const presser=(attr,b)=>$$('['+attr+']',main).forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
   $$('[data-z]',main).forEach(b=>b.addEventListener('click',()=>{setZoom(b.dataset.z);presser('data-z',b);layout();}));
   $$('[data-sty]',main).forEach(b=>b.addEventListener('click',()=>{setStyle(b.dataset.sty);presser('data-sty',b);}));
+  marquerNouveau();
 }
 
 /* ---------- Préparation en 3 étapes : les mots, le rythme, l'affichage ---------- */
