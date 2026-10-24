@@ -147,6 +147,9 @@ h1{font-size:clamp(30px,5vw,40px);line-height:1.15;letter-spacing:-.015em}
 .temps i{display:block;height:100%;width:100%;border-radius:99px;background:var(--phase-lecture);transition:width .1s linear}
 .temps.ecriture i{background:var(--phase-ecriture)}
 .seance-actions{margin-top:0}
+.seance-actions .btn{flex:1 1 0;min-width:150px;padding:0 16px}
+.stage.verif{border-color:#97C459}
+.sline .ic.vert{background:var(--p-mint)}
 
 /* ---------- Correction (fin de séance) ---------- */
 .recap{display:flex;flex-direction:column;gap:16px;padding:24px;border-radius:30px;background:var(--card);border:1px solid var(--line)}
@@ -272,7 +275,7 @@ body.simple .streak{background:var(--surface);color:var(--ink)}
 const APP={
   titre:'Dictée flash',
   sousTitre:'Regarde le mot, puis écris-le de mémoire.',
-  version:'1.4',                     // +0.1 à chaque publication
+  version:'1.5',                     // +0.1 à chaque publication
   sourceInternet:false,              // le point de départ est une appli créée avec Gemini
   sourceAutre:'à partir d’une application créée par Angelo Malaguarnera avec Gemini',
   cle:'dictee-flash'                 // préfixe localStorage — NE PLUS LE CHANGER après la 1re publication
@@ -387,6 +390,8 @@ const ICONS={
 const UI={
   pause:svg('<rect x="6" y="5" width="4.5" height="14" rx="1.5" fill="currentColor"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.5" fill="currentColor"/>','0 0 24 24'),
   play:svg('<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/>','0 0 24 24'),
+  retour:svg('<path d="M19 12H6M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>','0 0 24 24'),
+  coche:svg('<path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>','0 0 24 24'),
   fleche:svg('<path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>','0 0 24 24'),
   moins:svg('<path d="M6 12h12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>','0 0 24 24'),
   plus:svg('<path d="M6 12h12M12 6v12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>','0 0 24 24'),
@@ -645,6 +650,7 @@ function renderEtape(n,vide){
 /* ---------- Séance : le mot s'affiche, puis disparaît pour être écrit ---------- */
 const T={mots:[],i:0,phase:'idle',pause:false,duree:0,reste:0,fin:0,suite:null,timer:null};
 function enSeance(){return T.phase==='lecture'||T.phase==='ecriture';}
+function enDictee(){return enSeance()||T.phase==='verif';}
 
 function lancer(){
   const mots=decouper(R.texte);
@@ -665,6 +671,14 @@ function phaseEcriture(){
   T.phase='ecriture';minuteur(R.ecriture*1000,motSuivant);renderSeance();signal('ecriture');
 }
 function motSuivant(){T.i++;phaseLecture();}
+/* « Vérifier » : le mot revient pour que l'élève compare avec sa feuille (sans minuteur) */
+function phaseVerif(){arreter();T.phase='verif';T.pause=false;T.suite=null;renderSeance();say(T.mots[T.i]);}
+/* « Retour » : pendant la lecture, mot précédent. Sinon, revoir le mot actuel. */
+function reculer(){
+  if(T.phase==='lecture'){if(T.i===0)return;T.i--;}
+  else if(T.phase!=='ecriture'&&T.phase!=='verif')return;
+  phaseLecture();
+}
 
 /* Minuteur basé sur l'heure réelle (reste juste même si l'iPad ralentit la page) */
 function minuteur(ms,suite){arreter();T.duree=ms;T.reste=ms;T.suite=suite;T.pause=false;demarrer();}
@@ -684,24 +698,29 @@ function basculerPause(){
   majBarre();
 }
 /* « J'écris » / « Mot suivant » : passe à l'étape suivante, même pendant une pause */
-function passer(){if(T.phase==='lecture')phaseEcriture();else if(T.phase==='ecriture')motSuivant();}
+function passer(){if(T.phase==='lecture')phaseEcriture();else if(T.phase==='ecriture'||T.phase==='verif')motSuivant();}
 function quitter(){arreter();T.phase='idle';T.pause=false;T.suite=null;garderEcranAllume(false);if(synth)synth.cancel();}
 
 function renderSeance(){
-  const lect=T.phase==='lecture',mot=T.mots[T.i],n=T.mots.length,dernier=T.i===n-1,blanche=!lect&&R.page==='blanche';
+  const lect=T.phase==='lecture',verif=T.phase==='verif',ecr=T.phase==='ecriture',mot=T.mots[T.i],n=T.mots.length,dernier=T.i===n-1,blanche=ecr&&R.page==='blanche';
+  const cls=lect?'lecture':verif?'verif':'ecriture';
   header({segs:[T.i,n],listen:()=>say(mot)});
   view('<div class="seance-haut"><span class="badge">Mot '+(T.i+1)+' sur '+n+'</span><span class="pause-note" id="pauseNote"'+(T.pause?'':' hidden')+'>'+UI.pause+'En pause</span></div>'+
-    '<div class="sline consigne"><span class="ic '+(lect?'bleu':'jaune')+'">'+(lect?ICONS.oeil:ICONS.crayon)+'</span><span>'+(lect?'Regarde bien le mot.':'Écris le mot sur ta feuille.')+'</span></div>'+
-    '<div class="stage '+(lect?'lecture':'ecriture')+'">'+
-      (lect?'<span class="flash-word">'+esc(mot)+'</span>'
-           :'<div class="aide-ecrire'+(blanche?' cache':'')+'">'+ICONS.ecrire+'<p>À toi d’écrire !</p></div>')+
+    '<div class="sline consigne"><span class="ic '+(lect?'bleu':verif?'vert':'jaune')+'">'+(lect?ICONS.oeil:verif?ICONS.ok:ICONS.crayon)+'</span><span>'+(lect?'Regarde bien le mot.':verif?'Compare avec ta feuille.':'Écris le mot sur ta feuille.')+'</span></div>'+
+    '<div class="stage '+cls+'">'+
+      (ecr?'<div class="aide-ecrire'+(blanche?' cache':'')+'">'+ICONS.ecrire+'<p>À toi d’écrire !</p></div>'
+          :'<span class="flash-word">'+esc(mot)+'</span>')+
     '</div>'+
-    '<div class="temps '+(lect?'lecture':'ecriture')+(blanche?' cache':'')+'"><i id="barre"></i></div>'+
+    (verif?'':'<div class="temps '+cls+(blanche?' cache':'')+'"><i id="barre"></i></div>')+
     '<div class="actions seance-actions">'+
-      '<button type="button" class="btn ic" id="pauseBtn">'+(T.pause?UI.play+'Reprendre':UI.pause+'Pause')+'</button>'+
+      '<button type="button" class="btn ic" id="reculBtn"'+(lect&&T.i===0?' disabled':'')+'>'+UI.retour+'Retour</button>'+
+      (verif?'':'<button type="button" class="btn ic" id="pauseBtn">'+(T.pause?UI.play+'Reprendre':UI.pause+'Pause')+'</button>')+
+      (ecr?'<button type="button" class="btn ic" id="verifBtn">'+UI.coche+'Vérifier</button>':'')+
       '<button type="button" class="btn primary ic" id="suivantBtn">'+(lect?'J’écris':dernier?'J’ai fini':'Mot suivant')+UI.fleche+'</button>'+
     '</div>',true);
-  $('#pauseBtn').addEventListener('click',basculerPause);
+  $('#reculBtn').addEventListener('click',reculer);
+  if(!verif)$('#pauseBtn').addEventListener('click',basculerPause);
+  if(ecr)$('#verifBtn').addEventListener('click',phaseVerif);
   $('#suivantBtn').addEventListener('click',passer);
   majBarre();
 }
@@ -721,11 +740,12 @@ function renderFin(){
   $('#homeBtn2').addEventListener('click',renderHome);
 }
 
-/* Raccourcis clavier (ordinateur du TVI) : Espace = pause, flèche droite = suivant, Échap = accueil */
+/* Raccourcis clavier (ordinateur du TVI) : Espace = pause, flèches = suivant / retour, Échap = accueil */
 addEventListener('keydown',e=>{
-  if(!enSeance()||$('#helpModal').classList.contains('on'))return;
-  if(e.code==='Space'){if(e.target.closest&&e.target.closest('button'))return;e.preventDefault();basculerPause();}
+  if(!enDictee()||$('#helpModal').classList.contains('on'))return;
+  if(e.code==='Space'){if(!enSeance())return;if(e.target.closest&&e.target.closest('button'))return;e.preventDefault();basculerPause();}
   else if(e.code==='ArrowRight'){e.preventDefault();passer();}
+  else if(e.code==='ArrowLeft'){e.preventDefault();reculer();}
   else if(e.code==='Escape'){e.preventDefault();renderHome();}
 });
 /* L'élève quitte l'appli ou l'écran s'éteint : la séance se met en pause */
