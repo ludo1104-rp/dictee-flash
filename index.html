@@ -25,7 +25,7 @@
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
-  --bg:#F7F8FB; --surface:#EEF1F6; --card:#FFFFFF; --ink:#1F2933; --muted:#6A7581; --line:#E0E5EC; --line-strong:#CDD5DF;
+  --bg:#F7F8FB; --surface:#EEF1F6; --card:#FFFFFF; --ink:#1F2933; --muted:#5F6A76; --line:#E0E5EC; --line-strong:#CDD5DF;
   --focus:#3B6FD8; --primary:#3B6FD8; --primary-ink:#FFFFFF;
   --ok:#22804A; --ok-bg:#E3F5E9; --ok-strong:#2FA05C;
   --bad:#B42A20; --bad-bg:#FCE7E5; --bad-strong:#D9473B;
@@ -97,7 +97,7 @@ h1{font-size:clamp(30px,5vw,40px);line-height:1.15;letter-spacing:-.015em}
 .size-pill{min-height:46px;padding:0 16px;border-radius:999px;border:0;background:var(--surface);font-size:16px;display:inline-flex;align-items:center;gap:6px}
 .size-pill svg{width:20px;height:20px}
 .size-pill[aria-pressed="true"]{background:var(--sel-bg);box-shadow:inset 0 0 0 2px var(--sel)}
-.foot{margin-top:8px;font-size:13px;line-height:1.6;color:var(--muted);text-align:left}
+.foot{margin-top:8px;font-size:14px;line-height:1.6;color:var(--muted);text-align:left}
 
 /* Panneaux de l'accueil : « Mots à mémoriser » et « Réglages du rythme » */
 .panel{display:flex;flex-direction:column;gap:16px;padding:20px;border-radius:26px;background:var(--card);border:2px solid var(--line)}
@@ -700,8 +700,10 @@ function basculerPause(){
   const p=$('#pauseNote',main);if(p)p.hidden=!T.pause;
   majBarre();
 }
-/* « J'écris » / « Mot suivant » : passe à l'étape suivante, même pendant une pause */
-function passer(){if(T.phase==='lecture')phaseEcriture();else if(T.phase==='ecriture'||T.phase==='verif')motSuivant();}
+/* « J'écris » / « Mot suivant » : passe à l'étape suivante, même pendant une pause.
+   Un 2e appui dans les 400 ms est ignoré : sinon un double appui saute l'écriture du mot. */
+let dernierPasser=0;
+function passer(){const t=Date.now();if(t-dernierPasser<400)return;dernierPasser=t;if(T.phase==='lecture')phaseEcriture();else if(T.phase==='ecriture'||T.phase==='verif')motSuivant();}
 function quitter(){arreter();T.phase='idle';T.pause=false;T.suite=null;garderEcranAllume(false);if(synth)synth.cancel();}
 
 function renderSeance(){
