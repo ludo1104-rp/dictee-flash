@@ -650,9 +650,15 @@ const QRP=(()=>{
 })();
 function qrSVG(texte){
   const q=QRP.encoder(texte);if(!q)return'';
-  const t=q.n+8;let d='';
-  for(let y=0;y<q.n;y++)for(let x=0;x<q.n;x++)if(q.mod[y][x])d+='M'+(x+4)+' '+(y+4)+'h1v1h-1z';
-  return'<svg viewBox="0 0 '+t+' '+t+'" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="'+t+'" height="'+t+'" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';
+  const n=q.n,t=n+8,dans=(x,y)=>(x<7&&y<7)||(x>=n-7&&y<7)||(x<7&&y>=n-7);
+  // Points arrondis (sauf les trois grands carrés des coins, dessinés à part)
+  let d='';
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(q.mod[y][x]&&!dans(x,y))d+='<rect x="'+(x+4.06)+'" y="'+(y+4.06)+'" width=".88" height=".88" rx=".32"/>';
+  // Grands carrés des coins : anneau arrondi + carré central arrondi
+  for(const[a,b]of[[4,4],[n-3,4],[4,n-3]])
+    d+='<rect x="'+(a+.5)+'" y="'+(b+.5)+'" width="6" height="6" rx="1.9" fill="none" stroke="#000"/>'+
+       '<rect x="'+(a+2)+'" y="'+(b+2)+'" width="3" height="3" rx=".9"/>';
+  return'<svg viewBox="0 0 '+t+' '+t+'" role="img" aria-label="QR code"><rect width="'+t+'" height="'+t+'" fill="#fff"/><g fill="#000">'+d+'</g></svg>';
 }
 /* Adresse partagée : celle de la page en ligne (sans #, sans ?).
    Ouverte depuis un fichier sur le Mac, on prend APP.lien (adresse publiée). */
