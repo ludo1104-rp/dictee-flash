@@ -90,6 +90,8 @@ h1{font-size:clamp(30px,5vw,40px);line-height:1.15;letter-spacing:-.015em}
 .hero svg{width:min(240px,60%);height:auto}
 #reglBtn{position:absolute;right:76px;top:50%;transform:translateY(-50%)}
 #reglBtn svg{width:24px;height:24px}
+#qrBtn{position:absolute;right:136px;top:50%;transform:translateY(-50%)}
+#qrBtn svg{width:24px;height:24px}
 .mtitre{flex:1;margin:0;font-size:26px}
 .hero.petit svg{width:min(150px,40%)}
 .slines{display:flex;flex-direction:column;gap:10px}
@@ -266,6 +268,7 @@ body.simple .streak{background:var(--surface);color:var(--ink)}
     <span id="topLogo" class="marque">Ludo.</span>
     <button id="homeBtn" class="round" type="button" aria-label="Accueil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4l8 7.2V20a1 1 0 0 1-1 1h-4.6v-6H9.6v6H5a1 1 0 0 1-1-1z" fill="currentColor"/></svg></button>
     <div id="topCenter"></div>
+    <button id="qrBtn" class="round" type="button" aria-label="QR code de l’appli"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 18.5h2v1.5h-2zM18.5 14H20v2h-1.5z" fill="currentColor"/></svg></button>
     <button id="reglBtn" class="round" type="button" aria-label="Réglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="15" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="9" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></button>
     <button id="listenBtn" class="round" type="button" aria-label="Écouter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9c1.5 1.6 1.5 4.4 0 6M18.6 6.4c3 3.2 3 8 0 11.2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
   </header>
@@ -415,7 +418,6 @@ const ICONS={
 };
 /* Pictogrammes d'interface (une couleur, celle du bouton) */
 const UI={
-  qr:svg('<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/><path d="M14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 18.5h2v1.5h-2zM18.5 14H20v2h-1.5z" fill="currentColor"/>','0 0 24 24'),
   pause:svg('<rect x="6" y="5" width="4.5" height="14" rx="1.5" fill="currentColor"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.5" fill="currentColor"/>','0 0 24 24'),
   play:svg('<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor"/>','0 0 24 24'),
   retour:svg('<path d="M19 12H6M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>','0 0 24 24'),
@@ -542,7 +544,7 @@ const main=$('#main');
 function header(o){o=o||{};
   $('#homeBtn').style.visibility=o.home===false?'hidden':'visible';
   $('#topLogo').style.visibility=o.home===false?'visible':'hidden';
-  $('#reglBtn').style.display=o.home===false?'':'none';
+  $('#reglBtn').style.display=$('#qrBtn').style.display=o.home===false?'':'none';
   S.listen=o.listen||null;$('#listenBtn').style.visibility=S.listen?'visible':'hidden';
   let c='';if(o.segs)c='<div class="segs">'+Array.from({length:o.segs[1]},(_,i)=>'<i class="'+(i<o.segs[0]?'on':'')+'"></i>').join('')+'</div>';
   else if(o.title)c='<span class="ttl">'+esc(o.title)+'</span>';
@@ -578,11 +580,10 @@ function renderHome(){
     '<h1>'+esc(APP.titre)+'</h1>'+
     '<p class="lead">'+esc(APP.sousTitre)+'</p>'+
     '<div class="actions inline"><button type="button" class="btn primary" id="startBtn">Commencer</button><button type="button" class="btn" id="helpBtn">Comment jouer ?</button></div>'+
-    '<div class="home-bottom"><div><button type="button" class="btn petit" id="qrBtn">'+UI.qr+'QR code</button></div>'+mentions()+'</div>');
+    '<div class="home-bottom">'+mentions()+'</div>');
 
   $('#startBtn').addEventListener('click',()=>renderEtape(1));
   $('#helpBtn').addEventListener('click',openHelp);
-  $('#qrBtn').addEventListener('click',openQR);
 }
 
 /* Réglages : style et taille du texte. Rangés dans une fenêtre pour garder l'accueil léger. */
@@ -666,6 +667,7 @@ $('#qrClose').addEventListener('click',()=>$('#qrModal').classList.remove('on'))
 $('#qrModal').addEventListener('click',e=>{if(e.target.id==='qrModal')e.target.classList.remove('on');});
 addEventListener('keydown',e=>{if(e.code==='Escape')$('#qrModal').classList.remove('on');});
 $('#reglBtn').addEventListener('click',openRegl);
+$('#qrBtn').addEventListener('click',openQR);
 $('#reglClose').addEventListener('click',()=>$('#reglModal').classList.remove('on'));
 $('#reglModal').addEventListener('click',e=>{if(e.target.id==='reglModal')e.target.classList.remove('on');});
 
