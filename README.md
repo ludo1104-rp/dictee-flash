@@ -10,7 +10,7 @@ Petite appli pour iPad : l'élève regarde un mot quelques secondes, puis l'écr
 - Les réglages restent enregistrés sur l'appareil.
 - Tout est dans `index.html`.
 
-Version 1.4 — Application produite par IA à partir d'une application créée par Angelo Malaguarnera avec Gemini. Des erreurs peuvent survenir.
+Version 1.7 — Application produite par IA à partir d'une application créée par Angelo Malaguarnera avec Gemini. Des erreurs peuvent survenir.
 Application développée par Claude AI sous la supervision de Ludo (@rprof_1).
 
 ## Licence
